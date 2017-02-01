@@ -2,10 +2,10 @@
 # # Optimal Lineup Script Draftkings
 # ############################################################
 
-setwd("C:/Users/Mike/Desktop/Fantasy Stuff/NBA Research/Draftkings")
+setwd("C:/NBA")
 library('lpSolve')
 
-data <- read.csv('1_24_17_dk.csv')
+data <- read.csv('projections.csv')
 
 #Convert salary to numeric
 data$Salary <- as.numeric(gsub(",","",data$Salary), data$Salary)
