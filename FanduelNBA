@@ -1,0 +1,77 @@
+############################################################
+# Optimal Lineup Script
+############################################################
+
+setwd("C:/DFS")
+library('lpSolve')
+
+data <- read.csv('projections.csv')
+
+#Convert salary to numeric
+data$Salary <- as.numeric(gsub(",","",data$Salary), data$Salary)
+
+#Add binary valeus for positions  'Constraint Vectors'
+data <- cbind(data, PG=ifelse(data$Pos=="PG",1,0))
+data <- cbind(data, SG=ifelse(data$Pos=="SG",1,0))
+data <- cbind(data, SF=ifelse(data$Pos=="SF",1,0))
+data <- cbind(data, PF=ifelse(data$Pos=="PF",1,0))
+data <- cbind(data, C=ifelse(data$Pos=="C",1,0))
+
+#Objective Function. sum of proj pts
+f.obj <- data$Proj.Pts
+
+#Constraints
+num_PG <- 2
+num_SG <- 2
+num_SF <- 2
+num_PF <- 2
+num_C <-1
+max_team_cost <- 60000
+cur_max <- 5000
+max_player_from_a_team <- 4
+
+#Constraints for max players from team
+clubs <- sort(unique(data$Team))
+
+team_constraint_vector <- c()
+team_constraint_dir <- c()
+team_constraint_rhs <- c()
+
+for(i in 1:length(clubs)){
+  temp <- data$Team==as.character(clubs[i])
+  temp[temp==T] <- 1
+  temp[temp==F] <- 0
+  
+  team_constraint_vector <- c(team_constraint_vector, temp)
+  team_constraint_dir <- c(team_constraint_dir, "<=")
+  team_constraint_rhs <- c(team_constraint_rhs, max_player_from_a_team)
+}
+
+solutions <- list()
+solutionsMatrix <- matrix(, nrow=0, ncol=13)
+lineupsMatrix <- matrix(, nrow=0, ncol=10)
+
+for(i in 1:50){
+  f.con <- matrix (c(data$PG, data$SG, data$SF, data$PF, data$C, data$Salary, data$Proj.Pts, team_constraint_vector), nrow=(7+length(clubs)), byrow=TRUE)
+  f.dir <- c("=", "=", "=", "=", "=", "<=", "<=", team_constraint_dir)
+  f.rhs <- c(num_PG, num_SG, num_SF, num_PF, num_C, max_team_cost, cur_max, team_constraint_rhs)
+  
+  x <- lp ("max", f.obj, f.con, f.dir, f.rhs, all.bin=TRUE)
+  x
+  
+  solutions[[i]] <- data[which(x$solution==1),]
+  solutions[[i]] <- solutions[[i]][order(solutions[[i]]$Pos),]
+  solutionsMatrix <- rbind(solutionsMatrix, c(i, sum(solutions[[i]]$Proj.Pts), sum(solutions[[i]]$LinProj), sum(solutions[[i]]$Salary), toString(solutions[[i]]$Name[4]), toString(solutions[[i]]$Name[5]), toString(solutions[[i]]$Name[8]), toString(solutions[[i]]$Name[9]), toString(solutions[[i]]$Name[6]), toString(solutions[[i]]$Name[7]), toString(solutions[[i]]$Name[2]), toString(solutions[[i]]$Name[3]), toString(solutions[[i]]$Name[1])))
+  
+  lineupsMatrix <- rbind(lineupsMatrix, c(i, toString(solutions[[i]]$Fanduel.ID[4]), toString(solutions[[i]]$Fanduel.ID[5]), toString(solutions[[i]]$Fanduel.ID[8]), toString(solutions[[i]]$Fanduel.ID[9]), toString(solutions[[i]]$Fanduel.ID[6]), toString(solutions[[i]]$Fanduel.ID[7]), toString(solutions[[i]]$Fanduel.ID[2]), toString(solutions[[i]]$Fanduel.ID[3]), toString(solutions[[i]]$Fanduel.ID[1])))
+  
+  
+  cur_max <- sum(solutions[[i]]$Proj.Pts) -.0001
+}
+
+solutions[[1]]
+
+#Solutions Matrix Optimization
+solutionsMatrix
+
+write.csv(lineupsMatrix, "lineups.csv")
