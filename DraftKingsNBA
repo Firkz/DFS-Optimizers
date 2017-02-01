@@ -1,0 +1,83 @@
+# ############################################################
+# # Optimal Lineup Script Draftkings
+# ############################################################
+
+setwd("C:/Users/Mike/Desktop/Fantasy Stuff/NBA Research/Draftkings")
+library('lpSolve')
+
+data <- read.csv('1_24_17_dk.csv')
+
+#Convert salary to numeric
+data$Salary <- as.numeric(gsub(",","",data$Salary), data$Salary)
+
+#Add binary valeus for positions  'Constraint Vectors'
+data <- cbind(data, X=1)
+data <- cbind(data, PG=ifelse(data$Pos=="PG",1,0))
+data <- cbind(data, SG=ifelse(data$Pos=="SG", 1,0))
+data <- cbind(data, SF=ifelse(data$Pos=="SF", 1,0))
+data <- cbind(data, PF=ifelse(data$Pos=="PF", 1,0))
+data <- cbind(data, C=ifelse(data$Pos=="C", 1,0))
+data <- cbind(data, PGSG=ifelse(data$Pos=="PGSG", 1,0))
+data <- cbind(data, SGSF=ifelse(data$Pos=="SGSF", 1,0))
+data <- cbind(data, SFPF=ifelse(data$Pos=="SFPF", 1,0))
+data <- cbind(data, PFC=ifelse(data$Pos=="PFC", 1,0))
+
+
+#Objective Function. sum of proj pts
+f.obj <- data$Proj.Pts
+
+#Constraints
+num_X <- 8
+num_PG <- 1
+num_SG <- 1
+num_SF <- 1
+num_PF <- 1
+num_C <- 1
+num_G <- 3
+num_F <- 3
+num_SGSF <- 2
+num_PFC <- 2
+max_C <- 2
+max_pg <- 3
+max_team_cost <- 50000
+cur_max <- 5000
+max_player_from_a_team <- 3
+
+#Constraints for max players from team
+clubs <- sort(unique(data$Team))
+
+team_constraint_vector <- c()
+team_constraint_dir <- c()
+team_constraint_rhs <- c()
+
+for(i in 1:length(clubs)){
+  temp <- data$Team==as.character(clubs[i])
+  temp[temp==T] <- 1
+  temp[temp==F] <- 0
+  
+  team_constraint_vector <- c(team_constraint_vector, temp)
+  team_constraint_dir <- c(team_constraint_dir, "<=")
+  team_constraint_rhs <- c(team_constraint_rhs, max_player_from_a_team)
+}
+
+solutions <- list()
+solutionsMatrix <- matrix(, nrow=0, ncol=11)
+
+for(i in 1:50){
+  f.con <- matrix (c(data$X, data$PG + data$PGSG, data$SG + data$PGSG + data$SGSF, data$SF + data$SGSF + data$SFPF, data$PF + data$SFPF + data$PFC, data$C + data$PFC, data$PG + data$SG + data$PGSG + data$SGSF, data$SF + data$PF + data$SGSF + data$SFPF+ data$PFC, data$SG + data$PGSG + data$SGSF + data$SF + data$SFPF, data$PF + data$SFPF + data$PFC + data$C,  data$C, data$PG, data$Salary, data$Proj.Pts, team_constraint_vector), nrow=(14+length(clubs)), byrow=TRUE)
+  f.dir <- c("=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", "<=", "<=", "<=", "<=", team_constraint_dir)
+  f.rhs <- c(num_X, num_PG, num_SG, num_SF, num_PF, num_C, num_G, num_F, num_SGSF, num_PFC, max_C, max_pg, max_team_cost, cur_max, team_constraint_rhs)
+  
+  x <- lp ("max", f.obj, f.con, f.dir, f.rhs, all.bin=TRUE)
+  x
+  
+  solutions[[i]] <- data[which(x$solution==1),]
+  solutionsMatrix <- rbind(solutionsMatrix, c(i, sum(solutions[[i]]$Proj.Pts), sum(solutions[[i]]$Salary), toString(solutions[[i]]$Name[1]), toString(solutions[[i]]$Name[2]), toString(solutions[[i]]$Name[3]), toString(solutions[[i]]$Name[4]), toString(solutions[[i]]$Name[5]), toString(solutions[[i]]$Name[6]), toString(solutions[[i]]$Name[7]), toString(solutions[[i]]$Name[8])))
+  
+  cur_max <- sum(solutions[[i]]$Proj.Pts) -.0001
+}
+
+solutions[[1]]
+
+#Solutions Matrix Optimization
+solutionsMatrix
