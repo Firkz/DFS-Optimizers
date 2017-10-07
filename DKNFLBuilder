@@ -1,0 +1,109 @@
+################################################################
+#  DraftKings NFL Optimizer
+################################################################
+
+setwd("C:/Users/Mike/Desktop/Fantasy Stuff/NFL Research")
+library('lpSolve')
+
+data <- read.csv('2017week5targetsDK.csv')
+numLineups <- 20
+
+#Convert salary to numeric
+data$Salary <- as.numeric(gsub(",","",data$Salary), data$Salary)
+
+#Add binary valeus for Positionitions  'Constraint Vectors'
+data <- cbind(data, Player=1)
+data <- cbind(data, QB=ifelse(data$Position=="QB",1,0))
+data <- cbind(data, RB=ifelse(data$Position=="RB",1,0))
+data <- cbind(data, WR=ifelse(data$Position=="WR",1,0))
+data <- cbind(data, TE=ifelse(data$Position=="TE",1,0))
+data <- cbind(data, D=ifelse(data$Position=="DST",1,0))
+rand <- sample(1:100, nrow(data))
+data <- cbind(data, rand)
+data <- cbind(data, randC=data$rand * data$Confidence)
+
+#Objective Function. sum of proj pts
+f.obj <- data$randC
+
+#Constraints
+num_Players <- 9
+num_QB <- 1
+min_RB <- 2
+min_WR <- 3
+min_TE <- 1
+max_RB <- 3
+max_WR <- 4
+max_TE <- 2
+num_D <- 1
+max_team_cost <- 50000
+min_team_cost <- 49500
+
+solutions <- list()
+solutionsMatrix <- matrix(, nrow=0, ncol=11)
+lineupsMatrix <- matrix(, nrow=0, ncol=10)
+lineups <- list()
+
+for(i in 1:1000){
+  f.con <- matrix (c(data$Player, data$QB, data$RB, data$RB, data$WR, data$WR, data$TE, data$TE, data$D, data$Salary, data$Salary), nrow=11, byrow=TRUE)
+  f.dir <- c("=", "=", ">=", "<=", ">=", "<=", ">=", "<=", "=", "<=", ">=")
+  f.rhs <- c(num_Players, num_QB, min_RB, max_RB, min_WR, max_WR, min_TE, max_TE, num_D, max_team_cost, min_team_cost)
+  
+  x <- lp ("max", f.obj, f.con, f.dir, f.rhs, all.bin=TRUE)
+  
+  solutions[[i]] <- data[which(x$solution==1),]
+  solutions[[i]] <- solutions[[i]][order(solutions[[i]]$Position),]
+  
+  # 3 RB lineups
+  if(solutions[[i]]$Position[5] == "RB"){
+    if(((solutions[[i]]$Team[2] == solutions[[i]]$Team[6]) || (solutions[[i]]$Team[2] == solutions[[i]]$Team[7]) || (solutions[[i]]$Team[2]==solutions[[i]]$Team[8]) || (solutions[[i]]$Team[2]==solutions[[i]]$Team[9])) 
+       && !(paste(toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[1]), sep="") %in% lineups)){
+      solutionsMatrix <- rbind(solutionsMatrix, c(i, sum(solutions[[i]]$Salary), toString(solutions[[i]]$Name[2]), toString(solutions[[i]]$Name[3]), toString(solutions[[i]]$Name[4]), toString(solutions[[i]]$Name[7]), toString(solutions[[i]]$Name[8]), toString(solutions[[i]]$Name[9]), toString(solutions[[i]]$Name[6]), toString(solutions[[i]]$Name[5]), toString(solutions[[i]]$Name[1])))
+      
+      lineupsMatrix <- rbind(lineupsMatrix, c(i, toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[1])))  
+      
+      lineups <- c(lineups, paste(toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[1]), sep=""))  
+    }
+  }
+  
+  # 4 WR lineups
+  else if(solutions[[i]]$Position[6] == "WR"){
+    if(((solutions[[i]]$Team[2] == solutions[[i]]$Team[5]) || (solutions[[i]]$Team[2] == solutions[[i]]$Team[6]) || (solutions[[i]]$Team[2]==solutions[[i]]$Team[7]) || (solutions[[i]]$Team[2]==solutions[[i]]$Team[8] || (solutions[[i]]$Team[2] == solutions[[i]]$Team[9]))) 
+       && !(paste(toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[1]), sep="") %in% lineups)){
+      solutionsMatrix <- rbind(solutionsMatrix, c(i, sum(solutions[[i]]$Salary), toString(solutions[[i]]$Name[2]), toString(solutions[[i]]$Name[3]), toString(solutions[[i]]$Name[4]), toString(solutions[[i]]$Name[6]), toString(solutions[[i]]$Name[7]), toString(solutions[[i]]$Name[8]), toString(solutions[[i]]$Name[5]), toString(solutions[[i]]$Name[9]), toString(solutions[[i]]$Name[1])))
+      
+      lineupsMatrix <- rbind(lineupsMatrix, c(i, toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[1])))  
+      
+      lineups <- c(lineups, paste(toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[1]), sep=""))  
+    }
+  }
+  
+  # 2 TE lineups
+  else{
+    if(((solutions[[i]]$Team[2] == solutions[[i]]$Team[5]) || (solutions[[i]]$Team[2] == solutions[[i]]$Team[6]) || (solutions[[i]]$Team[2]==solutions[[i]]$Team[7]) || (solutions[[i]]$Team[2]==solutions[[i]]$Team[8] || (solutions[[i]]$Team[2] == solutions[[i]]$Team[9]))) 
+       && !(paste(toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[1]), sep="") %in% lineups)){
+      solutionsMatrix <- rbind(solutionsMatrix, c(i, sum(solutions[[i]]$Salary), toString(solutions[[i]]$Name[2]), toString(solutions[[i]]$Name[3]), toString(solutions[[i]]$Name[4]), toString(solutions[[i]]$Name[7]), toString(solutions[[i]]$Name[8]), toString(solutions[[i]]$Name[9]), toString(solutions[[i]]$Name[5]), toString(solutions[[i]]$Name[6]), toString(solutions[[i]]$Name[1])))
+      
+      lineupsMatrix <- rbind(lineupsMatrix, c(i, toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[1])))  
+      
+      lineups <- c(lineups, paste(toString(solutions[[i]]$ID[2]), toString(solutions[[i]]$ID[3]), toString(solutions[[i]]$ID[4]), toString(solutions[[i]]$ID[7]), toString(solutions[[i]]$ID[8]), toString(solutions[[i]]$ID[9]), toString(solutions[[i]]$ID[5]), toString(solutions[[i]]$ID[6]), toString(solutions[[i]]$ID[1]), sep=""))  
+    }
+  }
+  
+  data$rand <- NULL
+  data$randC <- NULL
+  rand <- NULL
+  rand <- sample(1:100, nrow(data))
+  data <- cbind(data, rand)
+  data <- cbind(data, randC=data$rand * data$Confidence)
+  f.obj <- data$randC
+  
+  if(nrow(solutionsMatrix) >= numLineups){
+    break
+  }
+  
+}
+
+#Solutions Matrix Optimization
+solutionsMatrix
+
+write.csv(lineupsMatrix, "lineupsDK.csv")
