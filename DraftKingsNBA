@@ -2,10 +2,10 @@
 # # Optimal Lineup Script Draftkings
 # ############################################################
 
-setwd("C:/NBA")
+setwd("C:/Users/Mike/Desktop/Fantasy Stuff/NBA Research/Draftkings")
 library('lpSolve')
 
-data <- read.csv('projections.csv')
+data <- read.csv('12_25_17_dk.csv')
 
 #Convert salary to numeric
 data$Salary <- as.numeric(gsub(",","",data$Salary), data$Salary)
@@ -18,6 +18,7 @@ data <- cbind(data, SF=ifelse(data$Pos=="SF", 1,0))
 data <- cbind(data, PF=ifelse(data$Pos=="PF", 1,0))
 data <- cbind(data, C=ifelse(data$Pos=="C", 1,0))
 data <- cbind(data, PGSG=ifelse(data$Pos=="PGSG", 1,0))
+data <- cbind(data, PGSF=ifelse(data$Pos=="PGSF", 1,0))
 data <- cbind(data, SGSF=ifelse(data$Pos=="SGSF", 1,0))
 data <- cbind(data, SFPF=ifelse(data$Pos=="SFPF", 1,0))
 data <- cbind(data, PFC=ifelse(data$Pos=="PFC", 1,0))
@@ -36,12 +37,16 @@ num_C <- 1
 num_G <- 3
 num_F <- 3
 num_SGSF <- 2
+num_PGSF <- 2
 num_PFC <- 2
+max_PGSG <- 4
+max_PFC <-4
 max_C <- 2
 max_pg <- 3
+max_PGC <- 4
 max_team_cost <- 50000
 cur_max <- 5000
-max_player_from_a_team <- 3
+max_player_from_a_team <- 4
 
 #Constraints for max players from team
 clubs <- sort(unique(data$Team))
@@ -64,9 +69,9 @@ solutions <- list()
 solutionsMatrix <- matrix(, nrow=0, ncol=11)
 
 for(i in 1:50){
-  f.con <- matrix (c(data$X, data$PG + data$PGSG, data$SG + data$PGSG + data$SGSF, data$SF + data$SGSF + data$SFPF, data$PF + data$SFPF + data$PFC, data$C + data$PFC, data$PG + data$SG + data$PGSG + data$SGSF, data$SF + data$PF + data$SGSF + data$SFPF+ data$PFC, data$SG + data$PGSG + data$SGSF + data$SF + data$SFPF, data$PF + data$SFPF + data$PFC + data$C,  data$C, data$PG, data$Salary, data$Proj.Pts, team_constraint_vector), nrow=(14+length(clubs)), byrow=TRUE)
-  f.dir <- c("=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", "<=", "<=", "<=", "<=", team_constraint_dir)
-  f.rhs <- c(num_X, num_PG, num_SG, num_SF, num_PF, num_C, num_G, num_F, num_SGSF, num_PFC, max_C, max_pg, max_team_cost, cur_max, team_constraint_rhs)
+  f.con <- matrix (c(data$X, data$PG + data$PGSG +data$PGSF, data$SG + data$PGSG + data$SGSF, data$SF + data$SGSF + data$SFPF + data$PGSF, data$PF + data$SFPF + data$PFC, data$C + data$PFC, data$PG + data$SG + data$PGSG + data$SGSF + data$PGSF, data$SF + data$PF + data$SGSF + data$SFPF+ data$PFC +data$PGSF, data$SG + data$PGSG + data$SGSF + data$SF + data$SFPF, data$PG + data$PGSF + data$PGSG + data$SF + data$SFPF +data$SGSF, data$PF + data$SFPF + data$PFC + data$C, data$C + data$PFC + data$PF,  data$C, data$PG, data$PG + data$C, data$PG + data$SG + data$PGSG, data$Salary, data$Proj.Pts, team_constraint_vector), nrow=(18+length(clubs)), byrow=TRUE)
+  f.dir <- c("=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=", ">=","<=", "<=", "<=", "<=", "<=", "<=", "<=", team_constraint_dir)
+  f.rhs <- c(num_X, num_PG, num_SG, num_SF, num_PF, num_C, num_G, num_F, num_SGSF, num_PGSF, num_PFC, max_PFC, max_C, max_pg, max_PGC, max_PGSG, max_team_cost, cur_max, team_constraint_rhs)
   
   x <- lp ("max", f.obj, f.con, f.dir, f.rhs, all.bin=TRUE)
   x
@@ -81,3 +86,4 @@ solutions[[1]]
 
 #Solutions Matrix Optimization
 solutionsMatrix
+
