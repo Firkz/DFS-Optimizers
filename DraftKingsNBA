@@ -2,7 +2,7 @@
 # # Optimal Lineup Script Draftkings
 # ############################################################
 
-setwd("C:/Users/Mike/Desktop/Fantasy Stuff/NBA Research/Draftkings")
+setwd("C:/Users/<Username>/Desktop/Fantasy Stuff/NBA Research/Draftkings")
 library('lpSolve')
 
 data <- read.csv('12_25_17_dk.csv')
